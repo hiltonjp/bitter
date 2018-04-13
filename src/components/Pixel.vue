@@ -1,5 +1,9 @@
 <template>
-  <div v-bind:style="{'background-color': this.pixelColor}" @mousedown="mouseDown" @mouseover="paint"/>
+  <div v-bind:style="{
+    'background-color': this.pixelColor,
+    width: this.pixelWidth,
+    height: this.pixelWidth,
+  }" @mousedown="mouseDown" @mouseover="paint"/>
 </template>
 
 <script>
@@ -7,18 +11,26 @@
 
   export default {
     name: "pixel",
-    props: ['index'],
+    props: {
+      index: {
+        type: Number,
+        required: true
+      },
+      width: {
+        type: Number,
+        required: true
+      }
+    },
     //data() {
       //return { pixelColor: this.$store.getters.pixels[this.index] }
     //},
     methods: {
       mouseDown() {
-        this.$store.dispatch('mouseDown');
-        this.$store.dispatch('setPixel',{index:this.index, color:this.brush});
+        this.$store.dispatch('draw',{index:this.index, color:this.brush});
       },
       paint() {
         if (this.drawing) {
-          this.$store.dispatch('setPixel',{index:this.index, color:this.brush});
+          this.$store.dispatch('draw',{index:this.index, color:this.brush});
         }
       },
     },
@@ -28,8 +40,11 @@
         brush: 'brush',
         getPixel: 'pixel',
       }),
-      pixelColor: function() {
+      pixelColor() {
         return this.getPixel(this.index);
+      },
+      pixelWidth() {
+        return "" + this.width +"px";
       }
     }
   }

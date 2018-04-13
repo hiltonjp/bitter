@@ -1,32 +1,61 @@
 <template>
   <div id="create">
     <div class="container">
-      <div class="bitboard">
-        <bit-board :colors="colors" ref="board"/>
-      </div>
+        <edit-board :pixelsize=30 />
+        <br>
+        <input type="text" id="title" v-model="title">
+        <div class="toolbox">
+          <div class="picker">
+            <sketch v-model="colors"/>
+          </div>
+          <div class="buttons">
+            <p>File Tools:</p>
+            <div class="tools">
+              <button class="toolbutton" @click="save()">Save</button>
+              <button class="toolbutton" @click="deleteBitter()">Delete</button>
+              <button class="toolbutton" @click="newBitter()">New</button>
+              <button class="toolbutton" @click="fill()">Fill</button>
+              <button class="toolbutton" @click="clear()">Clear</button>
+            </div>
+            <p>Brush Sizes:</p>
+            <div class="tools">
+              <button class="brushbutton" @click="setBrushSize('small')">small</button>
+              <button class="brushbutton" @click="setBrushSize('med')">medium</button>
+              <button class="brushbutton" @click="setBrushSize('large')">large</button>
+            </div>
+          </div>
+        </div>
     </div>
-    <br>
-    <div class="toolbox">
-      <div class="picker">
-        <sketch v-model="colors"/>
-      </div>
-      <div class="buttons">
-        <button class="toolbutton" @click="fill()">Fill</button>
-        <button class="toolbutton" @click="clear()">Clear</button>
-        <button class="toolbutton" @click="save()">Save</button>
+    <div class="images">
+      <div v-for="creation in creations">
+        <div class="menuitem" @click="setBitter(creation)">
+          <h3>{{creation.title}}</h3>
+          <p>{{creation.created | since}}</p>
+          <div class="del" @click="deleteItem(creation)">X</div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+  import EditBoard from './EditBoard';
   import BitBoard from './BitBoard';
   import { Sketch } from 'vue-color';
+  import moment from 'moment';
 
   export default {
-    components: { BitBoard, 'sketch': Sketch },
+    components: { EditBoard, 'sketch': Sketch, BitBoard },
+    created: function() {
+      this.$store.dispatch('getCreations').then(() => {
+        this.title = this.$store.getters.title;
+      })
+    },
     data() {
-      return { colors: [] }
+      return {
+        title: '',
+        colors: [],
+      }
     },
     methods: {
       fill() {
@@ -36,12 +65,58 @@
         this.$store.dispatch('clear');
       },
       save() {
-        this.$store.dispatch('save');
+        console.log(title);
+        this.$store.dispatch('setTitle', this.title).then(() =>{
+          this.$store.dispatch('saveCreation');
+        });
+      },
+      newBitter() {
+        this.$store.dispatch('newCreation').then(() => {
+        })
+      },
+      deleteBitter() {
+        this.$store.dispatch('deleteCreation').then(() => {
+          this.$store.dispatch('deleteCreation', bitter.id);
+        })
+      },
+      deleteItem(bitter) {
+        if (this.creations.length === 1) {
+          this.$store.dispatch('newCreation').then(() => {
+            this.$store.dispatch('deleteCreation', bitter.id);
+          })
+        } else {
+          this.$store.dispatch('deleteCreation', bitter.id);
+        }
+      },
+      setBitter(bitter) {
+        this.$store.dispatch('setCreation', bitter);
+      },
+      setBrushSize(size) {
+        this.$store.dispatch('setBrushSize', size);
+      },
+      pixels(creation) {
+        return JSON.parse(creation.pixels)
+      },
+    },
+    filters: {
+      since(datetime) {
+       return moment(datetime).format('MMMM Do YYYY');
+      }
+    },
+    computed: {
+      creations() {
+        return this.$store.getters.creations;
+      },
+      stateTitle() {
+        return this.$store.getters.title;
       }
     },
     watch: {
       colors: function(color) {
         this.$store.dispatch('changeBrush', color.hex);
+      },
+      stateTitle: function(title) {
+        this.title = title;
       }
     }
   }
@@ -49,24 +124,21 @@
 
 <style scoped>
   #create {
-    margin: 24px;
+    display: flex;
+    justify-content: flex-end;
   }
   .container {
-    display: inline-block;
     text-align: center;
-    background-color: #000033;
-    border-radius: 3.5%;
-    padding: 4px 4px 0px 4px;
-    box-shadow: 0px 4px 16px #00000088;
   }
-  .bitboard {
-    display: inline-block;
-    text-align: center;
-    width: 480px;
-    height: 480px;
-    clip-path: inset(0px 0px 0px 0px round 3% 3% 3% 3%);
+  .images {
+    min-width: 400px;
+    float: right;
+    right: 12px;
+    display: inline-flex;
+    flex-direction: column;
   }
   .toolbox {
+
     display: flex;
     padding-top: 20px;
     justify-content: center;
@@ -75,9 +147,14 @@
     display: inline-block;
     text-align: center;
   }
+  .buttons p {
+    text-align: left;
+    margin: 20px;
+  }
   .buttons {
     padding: 20px;
-    display: flex;
+    display: inline-flex;
+    flex-wrap: wrap;
     margin-left: 10px;
     flex-direction: column;
     background-color: white;
@@ -85,7 +162,59 @@
     box-shadow: 0px 6px 10px #00000028;
   }
   .toolbutton {
-    margin: 4px 0px;
+    margin: 4px 4px;
     width: 100px;
+    color: black;
+  }
+  .brushbutton {
+    color: black;
+  }
+  .menuitem {
+    display: inline-block;
+    padding: 10px;
+    margin: 12px;
+    width: 320px;
+    background-color: black;
+    color: white;
+    border-radius: 6px;
+    box-shadow: 0px 2px 3px #00000088;
+    text-align: left;
+  }
+  .menuitem h3 {
+    font-size: 32px;
+  }
+  .menuitem h1 {
+  }
+  .menuitem:hover {
+    transform: rotateZ(-1deg);
+    transition-duration: .2s;
+  }
+  .menuitem:active {
+    transform: translateY(3px) rotateZ(1deg);
+    transition-duration: .1s;
+  }
+  #title {
+    margin: 20px;
+    border: none;
+    background-color: none;
+    font-size: 60pt;
+    padding: 32px;
+    text-align: center;
+    transition-duration: .2s;
+  }
+  #title:hover {
+    color: #AAAAAA;
+    transition-duration: .2s;
+  }
+  #title:focus {
+    outline: none;
+  }
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .del {
+    font-size: 30px;
+    float: right;
   }
 </style>
