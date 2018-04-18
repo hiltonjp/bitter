@@ -4,14 +4,16 @@
   }">
     <app-header/>
     <router-view/>
+    <app-footer/>
   </div>
 </template>
 
 <script>
   import AppHeader from './components/AppHeader';
+  import AppFooter from './components/AppFooter';
   export default {
     name: 'App',
-    components: { AppHeader },
+    components: { AppHeader, AppFooter },
     computed: {
       bg: function() {
         return this.$store.getters.favcolor +"!important";
@@ -22,7 +24,7 @@
 
 <style>
   #app {
-    height: 100%;
+  
   }
   body {
     font-size: 18px;
@@ -55,7 +57,7 @@
     outline: none;
   }
   button:hover {
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+    box-shadow: 0 2px 1px #00000088;
   }
   button:active {
     transform: translateY(4px);
@@ -74,7 +76,8 @@
     color: #F35537;
   }
   .column {
-    width: 800px;
+   min-width: 500px;
+   text-align: center;
   }
   html,body {
     height: 100%;

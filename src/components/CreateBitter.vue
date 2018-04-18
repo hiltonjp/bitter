@@ -1,7 +1,7 @@
 <template>
   <div id="create">
     <div class="container">
-        <edit-board :pixelsize=30 />
+        <edit-board :pixelsize=24 />
         <br>
         <input type="text" id="title" v-model="title">
         <div class="toolbox">
@@ -65,19 +65,19 @@
         this.$store.dispatch('clear');
       },
       save() {
-        console.log(title);
+        console.log(this.title);
         this.$store.dispatch('setTitle', this.title).then(() =>{
+          let idx = this.$store.getters.creation_id;
+	        //this.$store.dispatch('setCreationTitle',this.title, idx);
           this.$store.dispatch('saveCreation');
-        });
+        })
       },
       newBitter() {
         this.$store.dispatch('newCreation').then(() => {
         })
       },
       deleteBitter() {
-        this.$store.dispatch('deleteCreation').then(() => {
-          this.$store.dispatch('deleteCreation', bitter.id);
-        })
+        this.deleteItem({id: this.$store.getters.creation_id});
       },
       deleteItem(bitter) {
         if (this.creations.length === 1) {
@@ -125,15 +125,13 @@
 <style scoped>
   #create {
     display: flex;
-    justify-content: flex-end;
-  }
-  .container {
     text-align: center;
   }
+  .container {
+    flex-grow: 1;
+    flex-shrink: 1;
+  }
   .images {
-    min-width: 400px;
-    float: right;
-    right: 12px;
     display: inline-flex;
     flex-direction: column;
   }
@@ -173,7 +171,7 @@
     display: inline-block;
     padding: 10px;
     margin: 12px;
-    width: 320px;
+    width: 240px;
     background-color: black;
     color: white;
     border-radius: 6px;
@@ -194,13 +192,17 @@
     transition-duration: .1s;
   }
   #title {
-    margin: 20px;
+    height: 60px;
+    width: 560px;
     border: none;
-    background-color: none;
-    font-size: 60pt;
-    padding: 32px;
+    background-color: #FFFFFF;
+    border-radius: 8px;
+    font-size: 60px;
+    padding: 8px;
+    box-shadow: 0px 3px 8px #00000088;
     text-align: center;
     transition-duration: .2s;
+    margin-top: 12px;
   }
   #title:hover {
     color: #AAAAAA;

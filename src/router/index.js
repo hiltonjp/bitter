@@ -4,6 +4,7 @@ import store from '../store'
 import HomePage from '@/components/HomePage'
 import CreateBitter from '@/components/CreateBitter'
 
+
 Vue.use(Router)
 
 export default new Router({

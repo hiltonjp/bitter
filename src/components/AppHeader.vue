@@ -2,9 +2,9 @@
   <nav>
     <ul id="menu">
       <li><!--img src="/static/images/red-bird.png"/--></li>
-      <li><router-link to="/"><!--img src="/static/images/red-bird.png"/-->Home</router-link></li>
+      <li><router-link to="/"><!--img src="/static/images/red-bird.png"/-->Bitter</router-link></li>
       <li class="right" v-if="loggedIn"><a @click="logout" href="#">Logout</a></li>
-      <li class="right" v-if="loggedIn">{{user.username}}</li>
+      <li class="right" v-if="loggedIn">User: {{user.username}}</li>
       <form v-else class="right" v-on:submit.prevent="login">
       	<input v-model="email" placeholder="Email Address">
       	<input v-model="password" placeholder="Password">
@@ -22,8 +22,8 @@
    name: 'AppHeader',
    data () {
      return {
-       email: 'jeff@hilton',
-       password: 'jeff',
+       email: '',
+       password: '',
      }
    },
    computed: {
@@ -57,8 +57,10 @@
 
 <style scoped>
    nav {
-       display: grid;
-       margin-bottom: 20px;
+      padding-top: 12px;
+      background-color: #00004422;
+      display: grid;
+      margin-bottom: 20px;
    }
    ul {
        list-style-type:none;
@@ -73,8 +75,9 @@
        height: 50px;
        text-align: center;
        line-height: 50px;
-       color: #666;
-   }
+       color: #00000088;
+      text-decoration: none;
+    }
    /*Active color*/
    li a.active {
    }
@@ -82,12 +85,24 @@
    li:hover a {
    }
    .right {
-     float: right;
+    float: right;
+    margin-right: 16px;
    }
    .errorPlace {
-     height: 20px;
+     height: 16px;
    }
    img {
      width: 50px;
    }
+  a {
+    text-decoration: none;
+    color: #00000088;
+  }
+  a:hover {
+    color: #ffffffaa;
+  }
+  button {
+    margin: 0;
+    margin-bottom: 2px;
+  }
 </style>

@@ -95,6 +95,10 @@
       width: 370px;
   }
 
+  .column {
+    min-width: 800px;
+    text-align: center;
+  }
   .infobox {
     position: relative;
     display: inline-block;

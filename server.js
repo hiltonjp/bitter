@@ -20,6 +20,39 @@ const saltRounds = 10;
 const default_role = 'user';
 const default_favcolor = '#fefefe';
 
+// jwt setup
+const jwt = require('jsonwebtoken');
+let jwtSecret = process.env.jwtSecret;
+if (jwtSecret === undefined) {
+  console.log("You need to define a jwtSecret environment variable to continue.");
+  knex.destroy();
+  process.exit();
+}
+
+const verifyToken = (req, res, next) => {
+  const token = req.headers['authorization'];
+  if (!token) {
+    console.log("oh butterbeans, no auth token");
+    return res.status(403).send({ error: 'No token provided.' });
+  }
+  jwt.verify(token, jwtSecret, function(err, decoded) {
+    if (err)
+      return res.status(500).send({ error: 'Failed to authenticate token.' });
+    // if everything good, save to request for use in other routes
+    req.userID = decoded.id;
+    next();
+  });
+}
+
+
+// Get my account
+app.get('/api/me', verifyToken, (req,res) => {
+  knex('users').where('id',req.userID).first().select('username','fname', 'lname','id', 'favcolor').then(user => {
+    res.status(200).json({user:user});
+  }).catch(error => {
+    res.status(500).json({ error });
+  });
+});
 
 // log in a user
 app.post('/api/login', (req, res) => {
@@ -34,7 +67,10 @@ app.post('/api/login', (req, res) => {
   }).spread((result,user) => {
     if (result) {
       console.log(user);
-      res.status(200).json({user:user});
+      let token = jwt.sign({ id: user.id }, jwtSecret, {
+        expiresIn: 86400 // expires in 24 hours
+      });
+      res.status(200).json({user:user,token:token});
     }
     else
       res.status(403).send("Invalid credentials");
@@ -88,7 +124,10 @@ app.post('/api/users', (req, res) => {
   }).then(ids => {
     return knex('users').where('id',ids[0]).first().select('username','fname', 'lname','id', 'favcolor');
   }).then(user => {
-    res.status(200).json({user:user});
+    let token = jwt.sign({ id: user.id }, jwtSecret, {
+      expiresIn: 86400 // expires in 24 hours
+    });
+    res.status(200).json({user:user, token:token});
     return;
   }).catch(error => {
     if (error.message !== 'abort') {
@@ -113,9 +152,13 @@ app.get('/api/users/:id/creations', (req, res) => {
 });
 
 // create a new image
-app.post('/api/users/:id/creations', (req, res) => {
+app.post('/api/users/:id/creations', verifyToken,(req, res) => {
   console.log("creating new image");
   let id = parseInt(req.params.id);
+  if (id !== req.userID) {
+    res.status(403).send();
+    return;
+  }
   knex('users').where('id',id).first().then(user => {
     console.log("found user");
     let resolution = req.body.resolution;
@@ -135,7 +178,7 @@ app.post('/api/users/:id/creations', (req, res) => {
     console.log(ids);
     return knex('images').where('id',ids[0]);
   }).then(images => {
-    console.log(images[0].pixels);
+    //console.log(images[0].pixels);
     res.status(200).json({image: images[0]});
     return;
   }).catch(error => {
@@ -145,29 +188,55 @@ app.post('/api/users/:id/creations', (req, res) => {
 });
 
 // save an edited image
-app.patch('/api/creations/:id', (req,res) =>{
-  let id = parseInt(req.params.id);
-  knex('images').where('id', id).first().update({
-    title: req.body.title,
-    pixels: req.body.data,
-    univ_edit: req.body.univ_edit
-  }).then(count =>{
-    res.status(200).send();
-    return;
-  }).catch(error =>{
-    console.log("ERROR: api/creations/"+id);
-    console.log(error);
-    res.status(500).json({error});
-  });
+app.patch('/api/creations/:id', verifyToken, (req,res) =>{
+  let imageId = parseInt(req.params.id);
+  knex('images')
+    .where('id', imageId)
+    .select('creator_id').first().then(id => {
+      if (id.creator_id !== req.userID) {
+        console.log("id: ",id.creator_id);
+        console.log("req.userID", req.userID);
+        console.log("Oh noes, this isn't korrect");
+        res.status(403).send();
+      } else {
+        knex('images').where('id',imageId).update({
+          title: req.body.title,
+          pixels: req.body.data,
+          univ_edit: req.body.univ_edit
+        }).then(count =>{
+          res.status(200).send();
+          return;
+        }).catch(error =>{
+          console.log("ERROR: api/creations/"+id);
+          console.log(error);
+          res.status(500).json({error});
+        });
+      }
+    });
 });
 
-app.delete('/api/creations/:id', (req,res) =>{
-  let id = parseInt(req.params.id);
-  knex('images').where('id',id).first().del().then(() =>{
-    res.status(200).send();
-    return;
-  }).catch(error => console.log(error));
+app.delete('/api/creations/:id', verifyToken, (req,res) =>{
+  let imageId = parseInt(req.params.id);
+  console.log(imageId); 
+  knex('images')
+    .where('id', imageId)
+    .select('creator_id').first().then(id => {
+      if (id.creator_id !== req.userID) {
+        console.log("id: ",id.creator_id);
+        console.log("req.userID", req.userID);
+        console.log("Oh noes, this isn't korrect");
+        res.status(403).send();
+      } else {
+        knex('images').where('id',imageId).del().then(count =>{
+          res.status(200).send();
+          return;
+        }).catch(error =>{
+          console.log("ERROR: delete api/creations/"+id);
+          console.log(error);
+          res.status(500).json({error});
+        });
+      }
+    });
 });
-
 
 app.listen(3000, () => console.log("server listening on port 3000"));

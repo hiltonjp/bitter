@@ -5,11 +5,18 @@ import axios from 'axios';
 
 Vue.use(Vuex);
 
+const getAuthHeader = () => {
+   console.log("Get Auth Header:");
+   console.log(localStorage.getItem('token'));
+   return { headers: {'authorization': localStorage.getItem('token')}};
+}
+
 export default new Vuex.Store({
   state: {
     // login/register
     user: {},
-    loggedIn: false,
+    //loggedIn: false,
+    token: '',
     loginError: '',
     registerError: '',
 
@@ -17,7 +24,7 @@ export default new Vuex.Store({
     // user page
     //focus: {},
     creations: [],
-    favcolor: '#FFFFFF',
+    favcolor: '#FFFFDD',
 
     // Editor tool
     title: '',
@@ -33,7 +40,13 @@ export default new Vuex.Store({
   getters: {
     // login/register
     user: state => state.user,
-    loggedIn: state => state.loggedIn,
+    //loggedIn: state => state.loggedIn,
+    getToken: state => state.token,
+    loggedIn: state => {
+      if (state.token === '')
+        return false;
+      return true;
+    },
     loginError: state => state.loginError,
     registerError: state => state.registerError,
 
@@ -57,18 +70,25 @@ export default new Vuex.Store({
   mutations: {
     // login/register
     SET_USER(state, user) {state.user = user;},
-    SET_LOGIN(state, status) {state.loggedIn = status;},
+    //SET_LOGIN(state, status) {state.loggedIn = status;},
+    SET_TOKEN(state, token) {
+      state.token = token;
+      if (token === '')
+	localStorage.removeItem('token');
+      else
+	localStorage.setItem('token', token)
+    },
     SET_LOGIN_ERROR(state, message) {state.loginError = message;},
     SET_REGISTER_ERROR(state, message) {state.registerError = message;},
 
     // user page
-    SET_FAV_COLOR(state, color) { state.favcolor = favcolor; },
+    SET_FAV_COLOR(state, favcolor) { state.favcolor = favcolor; },
     SET_CREATIONS(state, creations) { state.creations = creations; },
     SET_PIXELS(state, pixels) { state.pixels = pixels },
     SET_CREATION_ID(state, id) { state.creation_id = id; },
     SET_TITLE(state, title) {state.title = title},
     REMOVE_ITEM(state, id) {
-      let i = 0
+      let i = 0;
       for (i; i < state.creations.length; i++) {
         if (state.creations[i].id === id) {
           break;
@@ -101,20 +121,45 @@ export default new Vuex.Store({
   },
   actions: {
 
+    // Initialize //
+    initialize(context) {
+      let token = localStorage.getItem('token');
+      console.log("Is there actually one?");
+      console.log(token);
+      if(token) {
+       // see if we can use the token to get my user account
+       axios.get("/api/me",getAuthHeader()).then(response => {
+         context.commit('SET_TOKEN',token);
+         context.commit('SET_USER',response.data.user);
+	 context.commit('SET_FAV_COLOR',response.data.user.favcolor);
+       }).catch(err => {
+         // remove token and user from state
+         localStorage.removeItem('token');
+         context.commit('SET_USER',{});
+         context.commit('SET_TOKEN','');
+       });
+      }
+    },
+
     // login/register
     register(context, user) {
       console.log("register");
       axios.post("/api/users",user).then(response => {
         context.commit('SET_USER', response.data.user);
-        context.commit('SET_LOGIN', true);
+        //context.commit('SET_LOGIN', true);
+	console.log("Did I get a token? ", response.data.token);
+	context.commit('SET_TOKEN', response.data.token);
         context.commit('SET_REGISTER_ERROR', '');
         context.commit('SET_LOGIN_ERROR', '');
         console.log(response.data.user.favcolor);
         context.commit('SET_FAV_COLOR', response.data.user.favcolor);
+	console.log("Hehehehehehee");
       }).catch(error => {
-        console.log("error");
+        console.log("reg error");
+	console.log(error);
         context.commit('SET_LOGIN_ERROR', '');
-        context.commit('SET_LOGIN', false);
+        //context.commit('SET_LOGIN', false);
+	context.commit('SET_TOKEN', '');
         if (error.response) {
 	        if (error.response.status === 403)
 	          context.commit('SET_REGISTER_ERROR',"That email address already has an account.");
@@ -129,8 +174,9 @@ export default new Vuex.Store({
     login(context,user) {
       axios.post("/api/login",user).then(response => {
         context.commit('SET_USER', response.data.user);
-        context.commit('SET_LOGIN',true);
-        context.commit('SET_REGISTER_ERROR',"");
+        //context.commit('SET_LOGIN',true);
+        context.commit('SET_TOKEN', response.data.token);
+	context.commit('SET_REGISTER_ERROR',"");
         context.commit('SET_LOGIN_ERROR',"");
         context.commit('SET_FAV_COLOR', response.data.user.favcolor);
       }).catch(error => {
@@ -139,6 +185,7 @@ export default new Vuex.Store({
           if (error.response.status === 403 || error.response.status === 400)
             context.commit('SET_LOGIN_ERROR',"Invalid login.");
           context.commit('SET_REGISTER_ERROR',"");
+	  context.commit('SET_TOKEN', '');
           return;
         }
         context.commit('SET_LOGIN_ERROR',"Sorry, your request failed. We will look into it.");
@@ -148,7 +195,9 @@ export default new Vuex.Store({
     logout(context,user) {
       context.dispatch('saveCreation').then(() => {
         context.commit('SET_USER', {});
-        context.commit('SET_LOGIN',false);
+        //context.commit('SET_LOGIN',false);
+      	context.commit('SET_TOKEN', '');
+        context.commit('SET_FAV_COLOR','#FFFFDD');
       });
     },
 
@@ -159,9 +208,17 @@ export default new Vuex.Store({
         if (response.data.creations.length === 0) {
           context.dispatch("newCreation");
         } else {
-          let newest = response.data.creations[0];
+          let newest = response.data.creations.filter((bitter) => {
+		return bitter.id === context.state.creation_id;
+	  });
+	  if  (newest.length === 0) {
+		newest  = response.data.creations[0];
+	  } else {
+		newest = newest[0];
+	  }
+
           let pixels = JSON.parse(newest.pixels);
-          console.log(pixels);
+          console.log("response data", response.data);
           context.commit('SET_CREATIONS', response.data.creations);
           context.commit("SET_PIXELS", pixels);
           context.commit("SET_TITLE", newest.title);
@@ -175,7 +232,7 @@ export default new Vuex.Store({
     newCreation(context) {
       axios.post("/api/users/"+context.state.user.id+"/creations", {
         resolution: context.state.numPixels,
-      }).then(response => {
+      }, getAuthHeader()).then(response => {
         let pixels = JSON.parse(response.data.image.pixels);
         context.commit("SET_PIXELS", pixels);
         context.commit("SET_TITLE", response.data.image.title);
@@ -187,28 +244,34 @@ export default new Vuex.Store({
     },
 
     saveCreation(context) {
-      console.log(context.state.pixels);
+      //console.log(context.state.pixels);
       let update = {
         title: context.state.title,
         data: JSON.stringify(context.state.pixels),
         univ_edit: false,
       }
-      axios.patch("/api/creations/" + context.state.creation_id, update).then(response => {
-        context.dispatch('getCreations');
+      axios.patch("/api/creations/" + context.state.creation_id, update, getAuthHeader()).then(response => {
+	console.log("response from save", response);
+	if (context.state.user !== {}) {
+	    context.dispatch("getCreations");
+	}
       }).catch(error => {
         console.log("saveCreation failed:", error);
       });
     },
 
-    deleteCreation(context) {
-      axios.delete("/api/creations/" + context.state.creation_id).then(response =>{
-        context.dispatch('getCreations');
+    deleteCurrentCreation(context) {
+      console.log("before delete", context.state.creation_id);
+      axios.delete("/api/creations/" + context.state.creation_id, getAuthHeader()).then(response =>{
+        console.log("after delete", context.state.creation_id);
+	context.commit('REMOVE_ITEM', context.state.creation_id);
       })
     },
 
     deleteCreation(context, id) {
-      axios.delete("/api/creations/" + id).then(response =>{
+      axios.delete("/api/creations/" + id, getAuthHeader()).then(response =>{
         context.commit("REMOVE_ITEM", id);
+	context.dispatch('getCreations');
       });
     },
 
@@ -235,7 +298,7 @@ export default new Vuex.Store({
       } else if (context.state.bsize === "large") {
         context.commit('SET_PIXEL', pixel);
         context.commit('SET_PIXEL', {color: pixel.color, index: Math.min(numPixels, pixel.index+24)});
-        console.log(pixel.index);
+        //console.log(pixel.index);
         if (pixel.index !== row-1)
           context.commit('SET_PIXEL', {color: pixel.color, index: Math.max(0, pixel.index-24)});
         if (pixel.index % row !== row-1) {
